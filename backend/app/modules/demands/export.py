@@ -21,6 +21,7 @@ COLUMNS = [
     ("Target timeline", 22),
     ("Assign to", 22),
     ("Status", 14),
+    ("Created by", 22),
     ("Approved by", 22),
 ]
 DRAFT_COLUMNS = [
@@ -71,6 +72,7 @@ def build_workbook(rows: list[DemandSummary], lifecycle: str) -> bytes:
                 r.target_timeline,
                 r.assign_to,
                 r.progress_status,
+                r.created_by.display_name,
                 r.approved_by.display_name if r.approved_by else None,
             ]
         else:

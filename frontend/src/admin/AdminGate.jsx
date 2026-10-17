@@ -115,6 +115,9 @@ export default function AdminGate() {
           </div>
         </div>
         <nav className="tabs" aria-label="Admin sections">
+          <NavLink to="/admin/approvals" className="tab">
+            Letter approvals
+          </NavLink>
           <NavLink to="/admin/users" className="tab">
             Users
           </NavLink>

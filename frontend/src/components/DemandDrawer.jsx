@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom'
 import LetterPreview from './LetterPreview'
 import { DownloadIcon } from './icons'
 import { api } from '../api/client'
-import { Alert, Badge, Button, Drawer, ErrorAlert, Field, fieldErrorsOf, formatDate, formatDateTime } from './ui'
+import { Alert, Badge, Button, Drawer, ErrorAlert, Field, fieldErrorsOf, formatDate, formatDateTime, LifecycleBadge } from './ui'
 
 const FIELDS = [
   { key: 'country', label: 'Country' },
@@ -125,7 +125,9 @@ export default function DemandDrawer({ demandId, onClose, onSaved }) {
       subtitle={
         demand.lifecycle === 'approved'
           ? `Approved ${formatDate(demand.approved_at)} by ${demand.approved_by?.display_name}`
-          : `Draft · started ${formatDateTime(demand.created_at)} by ${demand.created_by.display_name}`
+          : demand.lifecycle === 'pending'
+            ? `Waiting for admin approval · sent ${formatDateTime(demand.submitted_at)} by ${demand.submitted_by?.display_name}`
+            : `Draft · started ${formatDateTime(demand.created_at)} by ${demand.created_by.display_name}`
       }
       onClose={onClose}
       footer={
@@ -176,9 +178,7 @@ export default function DemandDrawer({ demandId, onClose, onSaved }) {
         ) : (
         <div className="stack">
         <div className="row-gap">
-          <Badge tone={demand.lifecycle === 'approved' ? 'green' : 'amber'}>
-            {demand.lifecycle === 'approved' ? 'Approved' : 'Yet to be approved'}
-          </Badge>
+          <LifecycleBadge lifecycle={demand.lifecycle} />
           <Badge tone="blue">Status: {demand.progress_status}</Badge>
         </div>
 

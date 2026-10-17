@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom'
 import AdminAiPage from './admin/AdminAiPage'
+import AdminApprovalsPage from './admin/AdminApprovalsPage'
 import AdminGate from './admin/AdminGate'
 import AdminNameRequestsPage from './admin/AdminNameRequestsPage'
 import AdminPasswordPage from './admin/AdminPasswordPage'
@@ -36,7 +37,8 @@ export default function App() {
         <Route path="/demands/:demandId/chat" element={<ChatPage />} />
         <Route path="/profile" element={<MyProfilePage />} />
         <Route path="/admin" element={<AdminGate />}>
-          <Route index element={<Navigate to="/admin/users" replace />} />
+          <Route index element={<Navigate to="/admin/approvals" replace />} />
+          <Route path="approvals" element={<AdminApprovalsPage />} />
           <Route path="users" element={<AdminUsersPage />} />
           <Route path="name-requests" element={<AdminNameRequestsPage />} />
           <Route path="ai" element={<AdminAiPage />} />

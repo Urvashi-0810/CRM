@@ -27,6 +27,7 @@ export default function DemandListPage() {
 
   const [page, setPage] = useState({ items: [], total: 0, limit: DEFAULT_LIMIT, offset: 0 })
   const [drafts, setDrafts] = useState({ items: [], total: 0 })
+  const [pending, setPending] = useState({ items: [], total: 0 })
   const [options, setOptions] = useState({ countries: [], employers: [], assignees: [], statuses: [] })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -71,7 +72,12 @@ export default function DemandListPage() {
   }, [filterQuery, limit, offset])
 
   const loadDrafts = useCallback(async () => {
-    setDrafts(await api('/demands?lifecycle=draft&sort=-created_at&limit=50'))
+    const [draftPage, pendingPage] = await Promise.all([
+      api('/demands?lifecycle=draft&sort=-created_at&limit=50'),
+      api('/demands?lifecycle=pending&sort=-submitted_at&limit=50'),
+    ])
+    setDrafts(draftPage)
+    setPending(pendingPage)
   }, [])
 
   const loadOptions = useCallback(async () => {
@@ -135,6 +141,8 @@ export default function DemandListPage() {
       <DraftsSection
         drafts={drafts.items}
         total={drafts.total}
+        pending={pending.items}
+        pendingTotal={pending.total}
         onChanged={() => {
           loadDrafts()
           loadOptions()
@@ -236,6 +244,7 @@ export default function DemandListPage() {
                 <th>Status</th>
                 <th className="center">File</th>
                 <th className="center">Edit</th>
+                <th>Created by</th>
                 <th>Approved by</th>
               </tr>
             </thead>
@@ -268,6 +277,7 @@ export default function DemandListPage() {
                       <EditIcon />
                     </button>
                   </td>
+                  <td>{d.created_by.display_name}</td>
                   <td>{d.approved_by?.display_name}</td>
                 </tr>
               ))}

@@ -28,6 +28,7 @@ IST = ZoneInfo("Asia/Kolkata")
 
 Creator = aliased(User, name="creator")
 Approver = aliased(User, name="approver")
+Submitter = aliased(User, name="submitter")
 
 
 def etag_of(demand: DemandLetter) -> str:
@@ -49,14 +50,16 @@ def _base_query() -> Select:
         .scalar_subquery()
     )
     return (
-        select(DemandLetter, Creator.display_name, Approver.display_name, latest_version)
+        select(DemandLetter, Creator.display_name, Approver.display_name, latest_version, Submitter.display_name)
         .join(Creator, Creator.id == DemandLetter.created_by)
         .outerjoin(Approver, Approver.id == DemandLetter.approved_by)
+        .outerjoin(Submitter, Submitter.id == DemandLetter.submitted_by)
     )
 
 
 def _to_summary(
-    demand: DemandLetter, creator_name: str, approver_name: str | None, latest_version_no: int | None
+    demand: DemandLetter, creator_name: str, approver_name: str | None, latest_version_no: int | None,
+    submitter_name: str | None = None,
 ) -> dict:
     return dict(
         latest_version_no=latest_version_no,
@@ -72,6 +75,10 @@ def _to_summary(
         approved_at=demand.approved_at,
         approved_by=UserRef(id=demand.approved_by, display_name=approver_name)
         if demand.approved_by
+        else None,
+        submitted_at=demand.submitted_at,
+        submitted_by=UserRef(id=demand.submitted_by, display_name=submitter_name)
+        if demand.submitted_by
         else None,
         created_at=demand.created_at,
         created_by=UserRef(id=demand.created_by, display_name=creator_name),
@@ -116,6 +123,7 @@ def _apply_filters(query: Select, f: DemandFilters) -> Select:
 _SORT_COLUMNS = {
     "approved_at": DemandLetter.approved_at,
     "created_at": DemandLetter.created_at,
+    "submitted_at": DemandLetter.submitted_at,
     "demand_code": DemandLetter.demand_code,
     "employer": DemandLetter.employer,
     "country": DemandLetter.country,

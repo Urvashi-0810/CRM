@@ -6,9 +6,12 @@ Login, profiles and admin (M1) · demand register (M2) · AI chat that writes th
 ## What works now
 
 **Milestone 4 — approve, edit, versions, budget**
-- **Approve** (above the preview): writes today's date (India time) into the letter's *Date :*, removes the DRAFT
-  mark and moves the letter from "Yet to be approved" to the demand list with *approved by*. If fields are still
-  marked *to be filled*, a warning lists them and **Approve anyway** is offered. The approval date never changes
+- **Send for approval** (above the preview): the draft goes to the CRM admin and waits ("Waiting for admin
+  approval", still under "Yet to be approved"). An admin (Admin page unlocked) finds it under **Admin → Letter
+  approvals**, opens it and clicks **Approve** or **Send back** (optional reason; it returns to the drafts).
+- **Approve** (admin only): writes today's date (India time) into the letter's *Date :*, removes the DRAFT
+  mark and moves the letter to the demand list with *Created by* and *Approved by* (the admin). If fields are still
+  marked *to be filled*, a warning lists them. The approval date never changes
   afterwards; edits after approval create new versions straight away.
 - **Edit → Describe the change in the chat** (prompt edit), or **Edit → Edit in Word, then upload**: download the
   .docx, edit it in Word, upload it. The uploaded file is kept **exactly as saved** and becomes the newest
@@ -196,7 +199,9 @@ All routes are under `/api/v1`; errors are `application/problem+json`; every POS
 | GET | `/demands/{id}/active-job` · `/jobs/{id}` | poll while "Generating…" |
 | GET | `/demands/{id}/letter` | newest version (for the preview) · 404 none yet |
 | GET | `/demands/{id}/docx` | download newest .docx |
-| POST | `/demands/{id}/approve` | `{version_no}` · 409 already approved / stale version / AI working · 422 no letter yet |
+| POST | `/demands/{id}/submit` | `{version_no}` · send for approval → `pending` · 409 already sent / approved / stale version / AI working · 422 no letter yet |
+| POST | `/demands/{id}/approve` | admin · `{version_no}` · 409 not sent for approval / already approved / stale version / AI working |
+| POST | `/demands/{id}/send-back` | admin · `{reason?}` · back to draft · 409 not waiting for approval |
 | GET | `/demands/{id}/versions` · `/versions/{no}` · `/versions/{no}/docx` | history, one version, its file |
 | POST | `/demands/{id}/versions/{no}/restore` | **201** new newest version · 409 already newest |
 | POST | `/demands/{id}/edited-uploads` | multipart `file` (.docx) → **201** `{version_no, header_found}` · 422 wrong letter |

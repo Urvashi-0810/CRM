@@ -2,10 +2,10 @@ from datetime import datetime
 from urllib.parse import quote
 
 from fastapi import APIRouter, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, StringConstraints
 from sqlalchemy import select
 
-from app.deps import CurrentUser, DbSession
+from app.deps import AdminUser, CurrentUser, DbSession
 from app.errors import ProblemError
 from app.modules.ai_admin.models import Letterhead
 from app.modules.demands.models import DemandLetter, StoredFile
@@ -109,6 +109,10 @@ class ApproveIn(BaseModel):
     version_no: int
 
 
+class SendBackIn(BaseModel):
+    reason: Annotated[str, StringConstraints(strip_whitespace=True, max_length=500)] = ""
+
+
 class VersionRef(BaseModel):
     version_no: int
     source: str
@@ -118,10 +122,23 @@ class VersionRef(BaseModel):
     restored_from_no: int | None
 
 
+@router.post("/demands/{demand_id}/submit", status_code=status.HTTP_204_NO_CONTENT)
+async def submit_letter(demand_id: int, body: ApproveIn, current: CurrentUser, db: DbSession):
+    """Send the newest version to the CRM admin for approval (409 if a newer one exists)."""
+    await letters_service.submit(db, demand_id=demand_id, user=current.user, version_no=body.version_no)
+
+
+@router.post("/demands/{demand_id}/send-back", status_code=status.HTTP_204_NO_CONTENT)
+async def send_back_letter(demand_id: int, body: SendBackIn, current: AdminUser, db: DbSession):
+    """Admin: return a letter waiting for approval to the drafts."""
+    await letters_service.send_back(db, demand_id=demand_id, user=current.user, reason=body.reason)
+
+
 @router.post("/demands/{demand_id}/approve")
-async def approve_letter(demand_id: int, body: ApproveIn, current: CurrentUser, db: DbSession,
+async def approve_letter(demand_id: int, body: ApproveIn, current: AdminUser, db: DbSession,
                          storage: StorageDep):
-    """Approve the newest version. Send the version you looked at: 409 if a newer one exists.
+    """Admin: approve a letter that was sent for approval. Send the version you looked at:
+    409 if a newer one exists.
 
     Writes the approval date into the header, removes the DRAFT mark (saved as a new version),
     and moves the letter to the demand list.

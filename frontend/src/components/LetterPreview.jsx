@@ -38,7 +38,7 @@ export default function LetterPreview({ letter }) {
           <strong>Date :</strong> {formatApproval(letter.approved_at)}
         </span>
       </div>
-      {letter.lifecycle === 'draft' && <div className="paper-draft">DRAFT — NOT APPROVED</div>}
+      {letter.lifecycle !== 'approved' && <div className="paper-draft">DRAFT — NOT APPROVED</div>}
       <div className="paper-body">
         {content.title && (
           <h2 className="paper-title">

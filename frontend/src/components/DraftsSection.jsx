@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../api/client'
 import { ChatIcon, TrashIcon } from './icons'
-import { Button, ConfirmModal, ErrorAlert, formatDateTime } from './ui'
+import { Badge, Button, ConfirmModal, ErrorAlert, formatDateTime } from './ui'
 
-// "Yet to be approved" drafts, shown above the demand list.
-export default function DraftsSection({ drafts, total, onChanged }) {
+// "Yet to be approved" letters, shown above the demand list: the ones sent to the
+// CRM admin first, then the drafts still being written.
+export default function DraftsSection({ drafts, total, pending = [], pendingTotal = 0, onChanged }) {
   const navigate = useNavigate()
   const [deleting, setDeleting] = useState(null)
   const [busy, setBusy] = useState(false)
@@ -25,19 +26,27 @@ export default function DraftsSection({ drafts, total, onChanged }) {
     }
   }
 
-  if (!total) return null
+  if (!total && !pendingTotal) return null
 
   return (
     <section className="drafts">
       <header className="drafts-header">
         <h2>Yet to be approved</h2>
-        <span className="count-pill">{total}</span>
+        <span className="count-pill">{total + pendingTotal}</span>
       </header>
       <ul className="drafts-list">
-        {drafts.map((d) => (
+        {[...pending, ...drafts].map((d) => (
           <li key={d.id} className="draft-card">
             <div className="draft-main">
-              <span className="code">{d.demand_code}</span>
+              <span className="code">
+                {d.demand_code}
+                {d.lifecycle === 'pending' && (
+                  <>
+                    {' '}
+                    <Badge tone="blue">Waiting for admin approval</Badge>
+                  </>
+                )}
+              </span>
               <span className="muted small">
                 {d.employer || 'No employer yet'}
                 {d.country ? ` · ${d.country}` : ''}
@@ -46,10 +55,15 @@ export default function DraftsSection({ drafts, total, onChanged }) {
                 Started {formatDateTime(d.created_at)} by {d.created_by.display_name}
                 {d.latest_version_no ? ` · letter v${d.latest_version_no}` : ''}
               </span>
+              {d.lifecycle === 'pending' && (
+                <span className="muted small">
+                  Sent for approval {formatDateTime(d.submitted_at)} by {d.submitted_by?.display_name}
+                </span>
+              )}
             </div>
             <div className="draft-actions">
               <Button size="sm" onClick={() => navigate(`/demands/${d.id}/chat`)}>
-                <ChatIcon /> Continue chat
+                <ChatIcon /> {d.lifecycle === 'pending' ? 'Open' : 'Continue chat'}
               </Button>
               <Button variant="danger" size="sm" onClick={() => setDeleting(d)} aria-label={`Delete draft ${d.demand_code}`}>
                 <TrashIcon />

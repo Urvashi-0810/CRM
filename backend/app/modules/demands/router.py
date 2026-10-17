@@ -1,5 +1,5 @@
 from datetime import date, datetime
-from typing import Annotated, Literal
+from typing import Annotated
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Header, Query, Response, status
@@ -13,6 +13,7 @@ from app.modules.demands.schemas import (
     DemandPage,
     DemandUpdate,
     FilterOptions,
+    Lifecycle,
     SortField,
     TradeIn,
 )
@@ -23,7 +24,7 @@ router = APIRouter(prefix="/demands", tags=["demands"])
 
 
 def _filters(
-    lifecycle: Literal["draft", "approved"] = "approved",
+    lifecycle: Lifecycle = "approved",
     q: Annotated[str | None, Query(max_length=200)] = None,
     country: str | None = None,
     employer: str | None = None,
@@ -79,7 +80,8 @@ async def list_demands(
     limit: Annotated[int, Query(ge=1, le=200)] = 25,
     offset: Annotated[int, Query(ge=0)] = 0,
 ):
-    """The demand list (lifecycle=approved, default) or the drafts section (lifecycle=draft)."""
+    """The demand list (lifecycle=approved, default), the drafts section (lifecycle=draft) or
+    the letters waiting for an admin (lifecycle=pending)."""
     items, total = await service.list_demands(db, filters, limit=limit, offset=offset)
     return DemandPage(items=items, total=total, limit=limit, offset=offset)
 

@@ -342,6 +342,7 @@ async def test_export_xlsx_follows_filters(client, make_user):
     sheet = load_workbook(io.BytesIO(response.content)).active
     rows = list(sheet.iter_rows(values_only=True))
     assert rows[0][:4] == ("Approved date", "Country", "Demand ID", "Employer")
+    assert rows[0][-2:] == ("Created by", "Approved by")
     assert len(rows) == 1 + 3
     assert {r[1] for r in rows[1:]} == {"Qatar"}
     assert "'=HYPERLINK(1)" in {r[3] for r in rows[1:]}

@@ -114,7 +114,7 @@ async def rebuild_docx(db: AsyncSession, storage: Storage, demand: DemandLetter,
     lh, lh_images = await active_letterhead(db, storage)
     docx = build_docx(BuildInput(
         letter=letter, demand_code=await code_of(db, demand), approval_date=approval_date_of(demand),
-        is_draft=demand.lifecycle == "draft", letterhead=lh_images, images=images,
+        is_draft=demand.lifecycle != "approved", letterhead=lh_images, images=images,
     ))
     return docx, lh.id if lh else None
 
@@ -124,7 +124,7 @@ async def _stamped_or_rebuilt(db, storage, demand: DemandLetter, version: Letter
     Returns (docx, rebuilt, letterhead_id)."""
     source_file = await db.get(StoredFile, version.docx_file_id)
     original = await storage.read(source_file.storage_key)
-    stamped = stamp_docx(original, approval_date=approval_date_of(demand), is_draft=demand.lifecycle == "draft")
+    stamped = stamp_docx(original, approval_date=approval_date_of(demand), is_draft=demand.lifecycle != "approved")
     if stamped is not None:
         return stamped, False, version.letterhead_id
     docx, lh_id = await rebuild_docx(db, storage, demand, version.content)
@@ -158,23 +158,67 @@ def _bump(demand: DemandLetter) -> None:
     demand.updated_at = datetime.now(UTC)
 
 
-# ---------------- approve ----------------
+# ---------------- send for approval / approve / send back ----------------
 
 
-async def approve(db: AsyncSession, storage: Storage, *, demand_id: int, user: User, version_no: int) -> dict:
-    demand = await _lock_demand(db, demand_id)
-    if demand.lifecycle == "approved":
-        raise ProblemError(409, "already-approved", "This letter is already approved")
+async def _newest_checked(db: AsyncSession, demand_id: int, version_no: int, action: str) -> LetterVersion:
     latest = await latest_version(db, demand_id)
     if latest is None:
-        raise ProblemError(422, "no-letter-yet", "There is no letter to approve yet",
+        raise ProblemError(422, "no-letter-yet", f"There is no letter to {action} yet",
                            "Generate the letter in the chat first.")
     if latest.version_no != version_no:
         raise ProblemError(
             409, "stale-version", "A newer version exists",
             f"You were looking at version {version_no}, but version {latest.version_no} is the newest. "
-            "Check it, then approve.",
+            f"Check it, then {action}.",
         )
+    return latest
+
+
+async def submit(db: AsyncSession, *, demand_id: int, user: User, version_no: int) -> None:
+    """Send the draft to the CRM admin. It leaves the drafts and waits for an admin to approve it."""
+    demand = await _lock_demand(db, demand_id)
+    if demand.lifecycle == "approved":
+        raise ProblemError(409, "already-approved", "This letter is already approved")
+    if demand.lifecycle == "pending":
+        raise ProblemError(409, "already-submitted", "This letter is already waiting for approval")
+    await _newest_checked(db, demand_id, version_no, "send it for approval")
+    demand.lifecycle = "pending"
+    demand.submitted_at = datetime.now(UTC)
+    demand.submitted_by = user.id
+    _bump(demand)
+    _event(db, demand.id, user.id,
+           f"Sent for approval by {user.display_name.rstrip('.')} (version {version_no}). "
+           "Waiting for the CRM admin.",
+           version_no=version_no, action="submitted")
+    await db.commit()
+
+
+async def send_back(db: AsyncSession, *, demand_id: int, user: User, reason: str) -> None:
+    """Admin: return a letter waiting for approval to the drafts, with an optional reason."""
+    demand = await _lock_demand(db, demand_id)
+    if demand.lifecycle != "pending":
+        raise ProblemError(409, "not-pending", "This letter is not waiting for approval")
+    demand.lifecycle = "draft"
+    demand.submitted_at = None
+    demand.submitted_by = None
+    _bump(demand)
+    note = f"Sent back to draft by {user.display_name.rstrip('.')}."
+    if reason:
+        note += f" Reason: {reason}"
+    _event(db, demand.id, user.id, note, action="sent_back")
+    await db.commit()
+
+
+async def approve(db: AsyncSession, storage: Storage, *, demand_id: int, user: User, version_no: int) -> dict:
+    """Admin: approve a letter that was sent for approval."""
+    demand = await _lock_demand(db, demand_id)
+    if demand.lifecycle == "approved":
+        raise ProblemError(409, "already-approved", "This letter is already approved")
+    if demand.lifecycle != "pending":
+        raise ProblemError(409, "not-pending", "This letter has not been sent for approval",
+                           "Send it for approval first.")
+    latest = await _newest_checked(db, demand_id, version_no, "approve")
 
     demand.lifecycle = "approved"
     demand.approved_at = datetime.now(UTC)

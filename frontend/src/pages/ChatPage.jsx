@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { api } from '../api/client'
-import { ApproveDialog, EditMenu, VersionsPanel } from '../components/LetterActions'
+import { useAuth } from '../auth/AuthContext'
+import { ApproveDialog, EditMenu, SendBackDialog, SubmitDialog, VersionsPanel } from '../components/LetterActions'
 import LetterPreview from '../components/LetterPreview'
 import { DownloadIcon } from '../components/icons'
-import { Alert, Badge, Button, ConfirmModal, ErrorAlert, formatDateTime } from '../components/ui'
+import { Alert, Badge, Button, ConfirmModal, ErrorAlert, LifecycleBadge, formatDateTime } from '../components/ui'
 
 const KIND_OPTIONS = [
   { value: 'inquiry', label: 'Inquiry' },
@@ -165,6 +166,7 @@ function PasteInquiryCard({ value, onChange, onAttach, onUpload, onClose, textar
 export default function ChatPage() {
   const { demandId } = useParams()
   const navigate = useNavigate()
+  const { me } = useAuth()
   const [demand, setDemand] = useState(null)
   const [messages, setMessages] = useState([])
   const [letter, setLetter] = useState(null)
@@ -179,7 +181,7 @@ export default function ChatPage() {
   const [sending, setSending] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
-  const [approving, setApproving] = useState(false)
+  const [dialog, setDialog] = useState(null) // 'submit' | 'approve' | 'send-back'
   const [showVersions, setShowVersions] = useState(false)
   const [viewing, setViewing] = useState(null) // an older version being looked at
   const fileInput = useRef(null)
@@ -330,6 +332,11 @@ export default function ChatPage() {
     }
   }
 
+  async function closeDialogAndRefresh() {
+    setDialog(null)
+    await refreshAll()
+  }
+
   async function refreshAll() {
     setViewing(null)
     await Promise.all([loadMessages(), loadLetter(), loadDemand()])
@@ -349,9 +356,7 @@ export default function ChatPage() {
             ← Demand list
           </Link>
           <h1>{demand.demand_code}</h1>
-          <Badge tone={demand.lifecycle === 'approved' ? 'green' : 'amber'}>
-            {demand.lifecycle === 'approved' ? 'Approved' : 'Yet to be approved'}
-          </Badge>
+          <LifecycleBadge lifecycle={demand.lifecycle} />
           {demand.employer && <span className="muted small">{demand.employer}</span>}
         </div>
         <div className="row-gap">
@@ -360,7 +365,7 @@ export default function ChatPage() {
               <DownloadIcon /> Download .docx (v{letter.version_no})
             </a>
           )}
-          {demand.lifecycle === 'draft' && (
+          {demand.lifecycle !== 'approved' && (
             <Button variant="danger" size="sm" onClick={() => setConfirmDelete(true)} disabled={busy}>
               Delete draft
             </Button>
@@ -558,9 +563,19 @@ export default function ChatPage() {
               <div className="letter-bar">
                 <div className="row-gap">
                   {demand.lifecycle === 'draft' && (
-                    <Button size="sm" onClick={() => setApproving(true)} disabled={busy || Boolean(viewing)}>
-                      ✓ Approve
+                    <Button size="sm" onClick={() => setDialog('submit')} disabled={busy || Boolean(viewing)}>
+                      Send for approval
                     </Button>
+                  )}
+                  {demand.lifecycle === 'pending' && me?.admin_active && (
+                    <>
+                      <Button size="sm" onClick={() => setDialog('approve')} disabled={busy || Boolean(viewing)}>
+                        ✓ Approve
+                      </Button>
+                      <Button variant="danger" size="sm" onClick={() => setDialog('send-back')} disabled={busy}>
+                        Send back
+                      </Button>
+                    </>
                   )}
                   <EditMenu
                     demand={demand}
@@ -597,6 +612,12 @@ export default function ChatPage() {
                   </span>
                 </Alert>
               )}
+              {demand.lifecycle === 'pending' && !me?.admin_active && (
+                <Alert tone="info" title="Sent for approval — waiting for the CRM admin.">
+                  Sent by {demand.submitted_by?.display_name} on {formatDateTime(demand.submitted_at)}. CRM admins: unlock
+                  the Admin page to approve it here.
+                </Alert>
+              )}
               <div className="preview-head">
                 <span>
                   Version {shown.version_no} · {formatDateTime(shown.created_at)}
@@ -610,16 +631,14 @@ export default function ChatPage() {
         </section>
       </div>
 
-      {approving && letter && (
-        <ApproveDialog
-          demand={demand}
-          letter={letter}
-          onClose={() => setApproving(false)}
-          onApproved={async () => {
-            setApproving(false)
-            await refreshAll()
-          }}
-        />
+      {dialog === 'submit' && letter && (
+        <SubmitDialog demand={demand} letter={letter} onClose={() => setDialog(null)} onSubmitted={closeDialogAndRefresh} />
+      )}
+      {dialog === 'approve' && letter && (
+        <ApproveDialog demand={demand} letter={letter} onClose={() => setDialog(null)} onApproved={closeDialogAndRefresh} />
+      )}
+      {dialog === 'send-back' && (
+        <SendBackDialog demand={demand} onClose={() => setDialog(null)} onSentBack={closeDialogAndRefresh} />
       )}
       {confirmDelete && (
         <ConfirmModal

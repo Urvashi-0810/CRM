@@ -33,8 +33,9 @@ export function ApproveDialog({ demand, letter, onClose, onApproved }) {
     <Modal title={`Approve ${demand.demand_code}?`} onClose={onClose}>
       <div className="stack">
         <p>
-          You are approving <strong>version {letter.version_no}</strong>. The approval date is written into the letter, the
-          DRAFT mark is removed, and the letter moves to the demand list. You can still edit it afterwards.
+          You are approving <strong>version {letter.version_no}</strong>
+          {demand.submitted_by ? <> sent by {demand.submitted_by.display_name}</> : null}. The approval date is written
+          into the letter, the DRAFT mark is removed, and the letter moves to the demand list with you as the approver.
         </p>
         {missing.length > 0 && (
           <Alert tone="error" title={`${missing.length} field${missing.length === 1 ? '' : 's'} still to be filled:`}>
@@ -48,6 +49,95 @@ export function ApproveDialog({ demand, letter, onClose, onApproved }) {
           </Button>
           <Button onClick={approve} disabled={busy}>
             {busy ? 'Approving…' : missing.length ? 'Approve anyway' : 'Approve'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+export function SubmitDialog({ demand, letter, onClose, onSubmitted }) {
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+  const missing = letter.missing_fields || []
+
+  async function submit() {
+    setBusy(true)
+    setError(null)
+    try {
+      await api(`/demands/${demand.id}/submit`, { method: 'POST', body: { version_no: letter.version_no } })
+      onSubmitted()
+    } catch (err) {
+      setError(err)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title={`Send ${demand.demand_code} for approval?`} onClose={onClose}>
+      <div className="stack">
+        <p>
+          <strong>Version {letter.version_no}</strong> goes to the CRM admin. Once the admin approves it, the letter moves
+          to the demand list. If they send it back, it returns to your drafts.
+        </p>
+        {missing.length > 0 && (
+          <Alert tone="error" title={`${missing.length} field${missing.length === 1 ? '' : 's'} still to be filled:`}>
+            <span>{missing.join(', ')}. Fill them in the chat first, or send it as it is.</span>
+          </Alert>
+        )}
+        <ErrorAlert error={error} />
+        <div className="row-end">
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button onClick={submit} disabled={busy}>
+            {busy ? 'Sending…' : missing.length ? 'Send anyway' : 'Send for approval'}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+export function SendBackDialog({ demand, onClose, onSentBack }) {
+  const [reason, setReason] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState(null)
+
+  async function sendBack() {
+    setBusy(true)
+    setError(null)
+    try {
+      await api(`/demands/${demand.id}/send-back`, { method: 'POST', body: { reason } })
+      onSentBack()
+    } catch (err) {
+      setError(err)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal title={`Send ${demand.demand_code} back to draft?`} onClose={onClose}>
+      <div className="stack">
+        <p>The letter returns to the drafts so it can be corrected and sent again. The reason is shown in its chat.</p>
+        <textarea
+          className="prompt-editor"
+          rows={3}
+          maxLength={500}
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+          placeholder="What needs to change? (optional)"
+          aria-label="Reason"
+        />
+        <ErrorAlert error={error} />
+        <div className="row-end">
+          <Button variant="ghost" onClick={onClose} disabled={busy}>
+            Cancel
+          </Button>
+          <Button variant="danger" onClick={sendBack} disabled={busy}>
+            {busy ? 'Sending back…' : 'Send back'}
           </Button>
         </div>
       </div>

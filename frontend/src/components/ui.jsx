@@ -208,3 +208,14 @@ export function newRequestKey() {
   const bytes = crypto.getRandomValues(new Uint8Array(16))
   return Array.from(bytes, (b) => b.toString(16).padStart(2, '0')).join('')
 }
+
+const LIFECYCLE = {
+  draft: { tone: 'amber', label: 'Yet to be approved' },
+  pending: { tone: 'blue', label: 'Waiting for admin approval' },
+  approved: { tone: 'green', label: 'Approved' },
+}
+
+export function LifecycleBadge({ lifecycle }) {
+  const { tone, label } = LIFECYCLE[lifecycle] || LIFECYCLE.draft
+  return <Badge tone={tone}>{label}</Badge>
+}

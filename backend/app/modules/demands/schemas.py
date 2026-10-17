@@ -4,9 +4,9 @@ from typing import Annotated, Literal
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 
 ShortText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
-Lifecycle = Literal["draft", "approved"]
+Lifecycle = Literal["draft", "pending", "approved"]
 SortField = Literal[
-    "approved_at", "-approved_at", "created_at", "-created_at", "demand_code", "-demand_code",
+    "approved_at", "-approved_at", "created_at", "-created_at", "submitted_at", "-submitted_at", "demand_code", "-demand_code",
     "employer", "-employer", "country", "-country", "vacancy", "-vacancy",
 ]
 
@@ -59,6 +59,8 @@ class DemandSummary(BaseModel):
     assign_to: str | None
     approved_at: datetime | None
     approved_by: UserRef | None  # current name, as decided
+    submitted_at: datetime | None = None
+    submitted_by: UserRef | None = None
     created_at: datetime
     created_by: UserRef
     updated_at: datetime

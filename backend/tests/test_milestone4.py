@@ -10,7 +10,7 @@ from docx import Document
 from sqlalchemy import text
 
 from app.db import get_sessionmaker
-from tests.conftest import login
+from tests.conftest import login, unlock_admin
 from tests.test_chat_flow import (
     ASK,
     DOCX,
@@ -38,7 +38,57 @@ async def letter_ready(client, make_user, admin_password_set, ai, settings, repl
     return demand
 
 
-# ---------------- approve ----------------
+async def submit_and_approve(client, demand_id, version_no):
+    """Send for approval, then approve as the admin (the test client has the admin unlocked)."""
+    submitted = await client.post(f"/api/v1/demands/{demand_id}/submit", json={"version_no": version_no})
+    assert submitted.status_code == 204, submitted.text
+    return await client.post(f"/api/v1/demands/{demand_id}/approve", json={"version_no": version_no})
+
+
+# ---------------- send for approval / approve ----------------
+
+
+async def test_send_for_approval_then_admin_approves_or_sends_back(
+    client, make_user, admin_password_set, ai, settings
+):
+    demand = await letter_ready(client, make_user, admin_password_set, ai, settings)
+    url = f"/api/v1/demands/{demand['id']}"
+
+    # A draft can't be approved before it is sent.
+    early = await client.post(f"{url}/approve", json={"version_no": 1})
+    assert early.status_code == 409 and early.json()["type"] == "urn:crm:problem:not-pending"
+
+    assert (await client.post(f"{url}/submit", json={"version_no": 1})).status_code == 204
+    detail = (await client.get(url)).json()
+    assert detail["lifecycle"] == "pending" and detail["submitted_by"]["display_name"] == "Priya Shah"
+    assert detail["submitted_at"] and detail["approved_by"] is None
+    pending = (await client.get("/api/v1/demands?lifecycle=pending")).json()
+    assert [i["demand_code"] for i in pending["items"]] == [demand["demand_code"]]
+    assert (await client.get("/api/v1/demands?lifecycle=draft")).json()["total"] == 0
+    assert (await client.get("/api/v1/demands")).json()["total"] == 0  # not in the list until approved
+    # Still a draft on paper while it waits.
+    assert "DRAFT — NOT APPROVED" in header_xml((await client.get(f"{url}/docx")).content)
+    again = await client.post(f"{url}/submit", json={"version_no": 1})
+    assert again.status_code == 409 and again.json()["type"] == "urn:crm:problem:already-submitted"
+
+    # Only an unlocked admin can approve or send back.
+    assert (await client.delete("/api/v1/admin/session")).status_code == 204
+    for path, body in (("approve", {"version_no": 1}), ("send-back", {})):
+        refused = await client.post(f"{url}/{path}", json=body)
+        assert refused.status_code == 403 and refused.json()["type"] == "urn:crm:problem:admin-session-required"
+    assert (await unlock_admin(client)).status_code == 204
+
+    back = await client.post(f"{url}/send-back", json={"reason": "Salary is missing"})
+    assert back.status_code == 204
+    detail = (await client.get(url)).json()
+    assert detail["lifecycle"] == "draft" and detail["submitted_by"] is None
+    events = [m for m in (await client.get(f"{url}/messages")).json()["items"] if m["kind"] == "event"]
+    assert "Sent back to draft by Priya Shah. Reason: Salary is missing" in events[-1]["body"]
+    assert (await client.post(f"{url}/send-back", json={})).status_code == 409
+
+    assert (await submit_and_approve(client, demand["id"], 1)).status_code == 200
+    assert (await client.get(url)).json()["lifecycle"] == "approved"
+
 
 
 async def test_approve_stamps_date_removes_draft_and_moves_to_list(client, make_user, admin_password_set, ai, settings):
@@ -46,7 +96,7 @@ async def test_approve_stamps_date_removes_draft_and_moves_to_list(client, make_
     before = (await client.get(f"/api/v1/demands/{demand['id']}/docx")).content
     assert "DRAFT — NOT APPROVED" in header_xml(before)
 
-    response = await client.post(f"/api/v1/demands/{demand['id']}/approve", json={"version_no": 1})
+    response = await submit_and_approve(client, demand["id"], 1)
     assert response.status_code == 200, response.text
     assert response.json() == {"version_no": 2, "rebuilt": False}
 
@@ -76,23 +126,29 @@ async def test_approve_stamps_date_removes_draft_and_moves_to_list(client, make_
 async def test_approve_rules(client, make_user, admin_password_set, ai, settings):
     ai(ASK)
     demand = await setup(client, make_user, admin_password_set)
-    none_yet = await client.post(f"/api/v1/demands/{demand['id']}/approve", json={"version_no": 1})
+    none_yet = await client.post(f"/api/v1/demands/{demand['id']}/submit", json={"version_no": 1})
     assert none_yet.status_code == 422
 
-    ai(LETTER, LETTER)
+    ai(LETTER, LETTER, LETTER)
     await send(client, demand["id"], "", [inquiry_file()])
-    busy = await client.post(f"/api/v1/demands/{demand['id']}/approve", json={"version_no": 1})
+    busy = await client.post(f"/api/v1/demands/{demand['id']}/submit", json={"version_no": 1})
     assert busy.status_code == 409 and busy.json()["type"] == "urn:crm:problem:job-in-progress"
     await work(settings)
     await send(client, demand["id"], "change something")
     await work(settings)
-    stale = await client.post(f"/api/v1/demands/{demand['id']}/approve", json={"version_no": 1})
+    stale = await client.post(f"/api/v1/demands/{demand['id']}/submit", json={"version_no": 1})
+    assert stale.status_code == 409 and stale.json()["type"] == "urn:crm:problem:stale-version"
+    # The admin also approves only the newest version.
+    assert (await client.post(f"/api/v1/demands/{demand['id']}/submit", json={"version_no": 2})).status_code == 204
+    await send(client, demand["id"], "one more change")
+    await work(settings)
+    stale = await client.post(f"/api/v1/demands/{demand['id']}/approve", json={"version_no": 2})
     assert stale.status_code == 409 and stale.json()["type"] == "urn:crm:problem:stale-version"
 
 
 async def test_prompt_edit_after_approval_keeps_date(client, make_user, admin_password_set, ai, settings):
     demand = await letter_ready(client, make_user, admin_password_set, ai, settings, replies=(LETTER, LETTER))
-    await client.post(f"/api/v1/demands/{demand['id']}/approve", json={"version_no": 1})
+    await submit_and_approve(client, demand["id"], 1)
     approved_at = (await client.get(f"/api/v1/demands/{demand['id']}")).json()["approved_at"]
 
     await send(client, demand["id"], "make the title shorter")
@@ -136,7 +192,7 @@ async def test_restoring_draft_version_of_approved_letter_gets_approval_stamp(
     client, make_user, admin_password_set, ai, settings
 ):
     demand = await letter_ready(client, make_user, admin_password_set, ai, settings)
-    await client.post(f"/api/v1/demands/{demand['id']}/approve", json={"version_no": 1})
+    await submit_and_approve(client, demand["id"], 1)
     await client.post(f"/api/v1/demands/{demand['id']}/versions/1/restore")  # v1 was a draft
     xml = header_xml((await client.get(f"/api/v1/demands/{demand['id']}/docx")).content)
     assert "DRAFT" not in xml
@@ -204,7 +260,7 @@ async def test_approving_uploaded_letter_keeps_her_body(client, make_user, admin
     buf = io.BytesIO()
     doc.save(buf)
     await client.post(f"/api/v1/demands/{demand['id']}/edited-uploads", files={"file": ("e.docx", buf.getvalue(), DOCX)})
-    await client.post(f"/api/v1/demands/{demand['id']}/approve", json={"version_no": 2})
+    await submit_and_approve(client, demand["id"], 2)
     approved = Document(io.BytesIO((await client.get(f"/api/v1/demands/{demand['id']}/docx")).content))
     last = [p for p in approved.paragraphs if p.text == "Hand formatting"][0]
     assert last.runs[0].italic  # her formatting survived approval
@@ -321,7 +377,7 @@ async def test_full_flow_with_client_samples(client, make_user, admin_password_s
     edited.save(buf)
     assert (await client.post(f"/api/v1/demands/{demand['id']}/edited-uploads",
                               files={"file": ("edited.docx", buf.getvalue(), DOCX)})).status_code == 201
-    approve = await client.post(f"/api/v1/demands/{demand['id']}/approve", json={"version_no": 2})
+    approve = await submit_and_approve(client, demand["id"], 2)
     assert approve.status_code == 200
     final = (await client.get(f"/api/v1/demands/{demand['id']}/docx")).content
     assert "DRAFT" not in header_xml(final) and demand["demand_code"] in header_xml(final)

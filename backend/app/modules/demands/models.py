@@ -39,7 +39,8 @@ def format_demand_code(id_number: int) -> str:
 
 
 class DemandLetter(Base):
-    """One demand letter: a draft until approved, then a row in the demand list."""
+    """One demand letter: a draft, then sent for approval ("pending"), then approved by an
+    admin and shown in the demand list."""
 
     __tablename__ = "demand_letters"
 
@@ -66,6 +67,11 @@ class DemandLetter(Base):
         BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), index=True
     )
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), index=True)
+    # Who sent it for approval, and when. Cleared when an admin sends it back.
+    submitted_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
+    submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -81,7 +87,11 @@ class DemandLetter(Base):
     )
 
     __table_args__ = (
-        CheckConstraint("lifecycle in ('draft', 'approved')", name="lifecycle_valid"),
+        CheckConstraint("lifecycle in ('draft', 'pending', 'approved')", name="lifecycle_valid"),
+        CheckConstraint(
+            "lifecycle <> 'pending' or (submitted_at is not null and submitted_by is not null)",
+            name="pending_has_submitter",
+        ),
         CheckConstraint(
             "(lifecycle = 'approved') = (approved_at is not null and approved_by is not null)",
             name="approval_fields_match_lifecycle",
