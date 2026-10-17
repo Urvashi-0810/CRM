@@ -63,3 +63,29 @@ export async function api(path, { method = 'GET', body, form, headers = {} } = {
   }
   return data
 }
+
+// Downloads a file (GET) and saves it under the server's file name. Returns that name.
+export async function downloadFile(path) {
+  let response
+  try {
+    response = await fetch(`/api/v1${path}`, { credentials: 'same-origin' })
+  } catch {
+    throw new ApiError(0, { title: 'Cannot reach the server', detail: 'Check your connection and try again.' })
+  }
+  if (!response.ok) {
+    const isJson = (response.headers.get('content-type') || '').includes('json')
+    throw new ApiError(response.status, isJson ? await response.json() : null)
+  }
+  const disposition = response.headers.get('content-disposition') || ''
+  const match = disposition.match(/filename*=UTF-8''([^;]+)/i) || disposition.match(/filename="([^"]+)"/i)
+  const name = match ? decodeURIComponent(match[1]) : 'download'
+  const url = URL.createObjectURL(await response.blob())
+  const link = document.createElement('a')
+  link.href = url
+  link.download = name
+  document.body.appendChild(link)
+  link.click()
+  link.remove()
+  setTimeout(() => URL.revokeObjectURL(url), 10_000)
+  return name
+}

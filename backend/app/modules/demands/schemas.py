@@ -5,6 +5,8 @@ from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_vali
 
 ShortText = Annotated[str, StringConstraints(strip_whitespace=True, max_length=200)]
 Lifecycle = Literal["draft", "pending", "approved"]
+AD_STATUSES = ("Not started", "In progress", "Done")
+AdStatus = Literal["Not started", "In progress", "Done"]
 SortField = Literal[
     "approved_at", "-approved_at", "created_at", "-created_at", "submitted_at", "-submitted_at", "demand_code", "-demand_code",
     "employer", "-employer", "country", "-country", "vacancy", "-vacancy",
@@ -61,6 +63,10 @@ class DemandSummary(BaseModel):
     approved_by: UserRef | None  # current name, as decided
     submitted_at: datetime | None = None
     submitted_by: UserRef | None = None
+    ad_status: str = "Not started"
+    ad_assigned_to: str | None = None
+    ad_updated_at: datetime | None = None
+    ad_updated_by: UserRef | None = None
     created_at: datetime
     created_by: UserRef
     updated_at: datetime
@@ -84,6 +90,8 @@ class FilterOptions(BaseModel):
     employers: list[str]
     assignees: list[str]
     statuses: list[str]
+    ad_statuses: list[str] = list(AD_STATUSES)
+    ad_assignees: list[str] = []
 
 
 class DemandFilters(BaseModel):
@@ -95,6 +103,8 @@ class DemandFilters(BaseModel):
     employer: str | None = None
     progress_status: str | None = None
     assign_to: str | None = None
+    ad_status: AdStatus | None = None
+    ad_assigned_to: str | None = None
     approved_from: date | None = None
     approved_to: date | None = None
     sort: SortField = "-approved_at"

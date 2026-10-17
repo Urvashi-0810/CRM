@@ -8,6 +8,7 @@ import AdminUsagePage from './admin/AdminUsagePage'
 import AdminUsersPage from './admin/AdminUsersPage'
 import { useAuth } from './auth/AuthContext'
 import Layout from './components/Layout'
+import AdvertisementsPage from './pages/AdvertisementsPage'
 import ChatPage from './pages/ChatPage'
 import DemandListPage from './pages/DemandListPage'
 import LoginPage from './pages/LoginPage'
@@ -35,6 +36,7 @@ export default function App() {
         <Route index element={<Navigate to="/demands" replace />} />
         <Route path="/demands" element={<DemandListPage />} />
         <Route path="/demands/:demandId/chat" element={<ChatPage />} />
+        <Route path="/advertisements" element={<AdvertisementsPage />} />
         <Route path="/profile" element={<MyProfilePage />} />
         <Route path="/admin" element={<AdminGate />}>
           <Route index element={<Navigate to="/admin/approvals" replace />} />

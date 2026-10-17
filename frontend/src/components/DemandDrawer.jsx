@@ -26,7 +26,8 @@ function toTrades(demand) {
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b)
 
 // Details of one demand letter. In Milestone 3–4 the letter preview joins this panel.
-export default function DemandDrawer({ demandId, onClose, onSaved }) {
+// readOnly: only the letter preview, nothing can be changed (Create Advertisement page).
+export default function DemandDrawer({ demandId, onClose, onSaved, readOnly = false }) {
   const [demand, setDemand] = useState(null)
   const [form, setForm] = useState(null)
   const [trades, setTrades] = useState([])
@@ -131,7 +132,7 @@ export default function DemandDrawer({ demandId, onClose, onSaved }) {
       }
       onClose={onClose}
       footer={
-        <>
+        readOnly ? null : <>
           <Link className="btn btn-ghost" to={`/demands/${demand.id}/chat`}>
             Open chat to edit
           </Link>
@@ -147,18 +148,18 @@ export default function DemandDrawer({ demandId, onClose, onSaved }) {
       }
     >
       <div className="stack">
-        <nav className="tabs" aria-label="Demand letter">
+        {!readOnly && <nav className="tabs" aria-label="Demand letter">
           <button className={`tab tab-btn ${tab === 'letter' ? 'active' : ''}`} onClick={() => setTab('letter')}>
             Letter
           </button>
           <button className={`tab tab-btn ${tab === 'details' ? 'active' : ''}`} onClick={() => setTab('details')}>
             Details{dirty ? ' •' : ''}
           </button>
-        </nav>
-        {tab === 'letter' ? (
+        </nav>}
+        {readOnly || tab === 'letter' ? (
           <div className="stack">
             {letter === undefined && <p className="muted">Loading…</p>}
-            {letter === null && <p className="muted">No letter generated yet. Open the chat to create it.</p>}
+            {letter === null && <p className="muted">No letter generated yet.</p>}
             {letter && (
               <>
                 <div className="row-gap">

@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     # so the flow can be tried without an API key. Never enable in production.
     llm_allow_test_provider: bool = False
 
+    # LibreOffice program used to turn letters into PDF/PNG/JPG for Canva and Figma.
+    # Leave empty to find it automatically ("soffice" on the PATH, or the usual Windows
+    # install folder). Example: C:\Program Files\LibreOffice\program\soffice.exe
+    libreoffice_path: str | None = None
+
     # Must be true whenever the app is served over HTTPS (always in production).
     # Set to false only for local development over plain http://localhost.
     cookie_secure: bool = True

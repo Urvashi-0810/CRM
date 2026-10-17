@@ -27,6 +27,9 @@ export default function Layout() {
           <NavLink to="/demands" className="nav-link">
             Demand Drafts
           </NavLink>
+          <NavLink to="/advertisements" className="nav-link">
+            Create Advertisement
+          </NavLink>
           <NavLink to="/profile" className="nav-link">
             My Profile
           </NavLink>

@@ -4,19 +4,10 @@ import { api } from '../api/client'
 import DemandDrawer from '../components/DemandDrawer'
 import DraftsSection from '../components/DraftsSection'
 import { DownloadIcon, EditIcon, SearchIcon } from '../components/icons'
-import { Badge, Button, ErrorAlert, Pagination, formatDate, newRequestKey } from '../components/ui'
+import { Badge, Button, ErrorAlert, Pagination, formatDate, newRequestKey, useDebounced } from '../components/ui'
 
 const FILTER_KEYS = ['q', 'country', 'employer', 'progress_status', 'assign_to', 'approved_from', 'approved_to']
 const DEFAULT_LIMIT = 25
-
-function useDebounced(value, ms) {
-  const [debounced, setDebounced] = useState(value)
-  useEffect(() => {
-    const t = setTimeout(() => setDebounced(value), ms)
-    return () => clearTimeout(t)
-  }, [value, ms])
-  return debounced
-}
 
 export default function DemandListPage() {
   const navigate = useNavigate()

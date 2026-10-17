@@ -5,6 +5,18 @@ Login, profiles and admin (M1) · demand register (M2) · AI chat that writes th
 
 ## What works now
 
+**Phase 2 — Create Advertisement**
+- New page **Create Advertisement** (left menu, everyone logged in): approved letters only, with the same search,
+  filters, sorting, pages and Excel export as the demand list. Country, demand ID, employer, vacancy and target
+  timeline are the same data as the demand list and can't be changed here. Clicking a row shows the letter, read-only.
+- **Ad assigned to** (free text) and **Ad status** (Not started / In progress / Done) are set on each row; every
+  change records who made it and when (hover the status). Approved letters start at *Not started*.
+- **Export**: choose **Canva** (.docx or PDF) or **Figma** (PNG or JPG, one image per page; a .zip when the letter
+  has several pages). The newest version is used, including edits after approval. The file downloads; the person
+  opens Canva/Figma and drags it in. Nothing is uploaded to Canva or Figma.
+- PDF/PNG/JPG need **LibreOffice** on the server (see below). Without it, .docx still works and PDF/images show a
+  clear "not set up" message. Each version is converted once; later exports reuse the PDF.
+
 **Milestone 4 — approve, edit, versions, budget**
 - **Send for approval** (above the preview): the draft goes to the CRM admin and waits ("Waiting for admin
   approval", still under "Yet to be approved"). An admin (Admin page unlocked) finds it under **Admin → Letter
@@ -98,7 +110,14 @@ docker compose run --rm api python -m scripts.seed_demo      # 40 approved + 3 d
 
 ## Run without Docker
 
-Requires Python 3.12+, Node 22+, PostgreSQL 16.
+Requires Python 3.12+, Node 22+, PostgreSQL 16, and **LibreOffice** for the Canva/Figma PDF and image exports.
+
+**Installing LibreOffice**
+- Windows: download it from https://www.libreoffice.org/download/ (or `winget install TheDocumentFoundation.LibreOffice`).
+  The app finds it in `C:\Program Files\LibreOffice` by itself; otherwise set `LIBREOFFICE_PATH` in `.env`.
+- Ubuntu/Debian: `sudo apt install libreoffice-writer-nogui fonts-crosextra-carlito fonts-liberation`.
+- macOS: `brew install --cask libreoffice`.
+- The Docker image already includes it.
 
 ```bash
 createdb crm && createdb crm_test
@@ -205,6 +224,9 @@ All routes are under `/api/v1`; errors are `application/problem+json`; every POS
 | GET | `/demands/{id}/versions` · `/versions/{no}` · `/versions/{no}/docx` | history, one version, its file |
 | POST | `/demands/{id}/versions/{no}/restore` | **201** new newest version · 409 already newest |
 | POST | `/demands/{id}/edited-uploads` | multipart `file` (.docx) → **201** `{version_no, header_found}` · 422 wrong letter |
+| GET | `/ads` · `/ads/filter-options` · `/ads/export` | Create Advertisement table (approved only; filters `q, country, employer, ad_status, ad_assigned_to, approved_from, approved_to, sort`), Excel |
+| PATCH | `/ads/{id}` | `{ad_status?, ad_assigned_to?}` · records who/when · 404 if not approved |
+| GET | `/ads/{id}/export?tool=canva\|figma&format=docx\|pdf\|png\|jpg` | newest version for the tool · 422 wrong format for the tool · 503 LibreOffice missing |
 | GET | `/files/{id}` | attachments, JD pictures, letterhead images |
 | GET | `/ai/status` | is the AI set up, active letterhead |
 | … | `/admin/llm-providers`, `/admin/prompts`, `/admin/letterheads` | AI settings (admin) |
@@ -224,6 +246,7 @@ All routes are under `/api/v1`; errors are `application/problem+json`; every POS
 | `MAX_FILE_MB` / `MAX_LETTER_INPUTS_MB` / `MAX_IMAGES_PER_LETTER` | 10 / 20 / 20 | upload limits |
 | `WORKER_CONCURRENCY` / `JOB_LEASE_SECONDS` | 10 / 300 | worker |
 | `LLM_ALLOW_TEST_PROVIDER` | `false` | development only |
+| `LIBREOFFICE_PATH` | found automatically | full path to `soffice` if it isn't on the PATH or in the usual Windows folder |
 | `SESSION_TTL_HOURS`, `ADMIN_SESSION_MINUTES`, `ADMIN_MAX_FAILED_ATTEMPTS`, `ADMIN_LOCKOUT_MINUTES`, `PASSWORD_MIN_LENGTH` | 12, 30, 5, 15, 6 | |
 
 ## Decisions in Milestone 3

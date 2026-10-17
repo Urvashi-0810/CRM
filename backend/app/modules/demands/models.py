@@ -72,6 +72,13 @@ class DemandLetter(Base):
         BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), index=True
     )
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Advertisement work on the approved letter (Create Advertisement page), set by hand.
+    ad_status: Mapped[str] = mapped_column(Text, nullable=False, server_default="Not started")
+    ad_assigned_to: Mapped[str | None] = mapped_column(Text)
+    ad_updated_by: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="RESTRICT"), index=True
+    )
+    ad_updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
@@ -96,6 +103,8 @@ class DemandLetter(Base):
             "(lifecycle = 'approved') = (approved_at is not null and approved_by is not null)",
             name="approval_fields_match_lifecycle",
         ),
+        CheckConstraint("ad_status in ('Not started', 'In progress', 'Done')", name="ad_status_valid"),
+        CheckConstraint("ad_assigned_to is null or length(ad_assigned_to) <= 200", name="ad_assigned_to_length"),
         CheckConstraint(f"id_number between 1 and {MAX_ID_NUMBER}", name="id_number_range"),
         CheckConstraint("vacancy is null or vacancy >= 0", name="vacancy_not_negative"),
         Index("ix_demand_letters_lifecycle_approved_at", "lifecycle", "approved_at"),

@@ -1,5 +1,5 @@
 // Shared UI building blocks.
-import { useEffect, useId } from 'react'
+import { useEffect, useId, useState } from 'react'
 
 export function Button({ variant = 'primary', size, className = '', ...props }) {
   const classes = ['btn', `btn-${variant}`, size === 'sm' ? 'btn-sm' : '', className].filter(Boolean).join(' ')
@@ -218,4 +218,13 @@ const LIFECYCLE = {
 export function LifecycleBadge({ lifecycle }) {
   const { tone, label } = LIFECYCLE[lifecycle] || LIFECYCLE.draft
   return <Badge tone={tone}>{label}</Badge>
+}
+
+export function useDebounced(value, ms) {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const t = setTimeout(() => setDebounced(value), ms)
+    return () => clearTimeout(t)
+  }, [value, ms])
+  return debounced
 }

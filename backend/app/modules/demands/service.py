@@ -29,6 +29,7 @@ IST = ZoneInfo("Asia/Kolkata")
 Creator = aliased(User, name="creator")
 Approver = aliased(User, name="approver")
 Submitter = aliased(User, name="submitter")
+AdUpdater = aliased(User, name="ad_updater")
 
 
 def etag_of(demand: DemandLetter) -> str:
@@ -50,16 +51,20 @@ def _base_query() -> Select:
         .scalar_subquery()
     )
     return (
-        select(DemandLetter, Creator.display_name, Approver.display_name, latest_version, Submitter.display_name)
+        select(
+            DemandLetter, Creator.display_name, Approver.display_name, latest_version,
+            Submitter.display_name, AdUpdater.display_name,
+        )
         .join(Creator, Creator.id == DemandLetter.created_by)
         .outerjoin(Approver, Approver.id == DemandLetter.approved_by)
         .outerjoin(Submitter, Submitter.id == DemandLetter.submitted_by)
+        .outerjoin(AdUpdater, AdUpdater.id == DemandLetter.ad_updated_by)
     )
 
 
 def _to_summary(
     demand: DemandLetter, creator_name: str, approver_name: str | None, latest_version_no: int | None,
-    submitter_name: str | None = None,
+    submitter_name: str | None = None, ad_updater_name: str | None = None,
 ) -> dict:
     return dict(
         latest_version_no=latest_version_no,
@@ -79,6 +84,12 @@ def _to_summary(
         submitted_at=demand.submitted_at,
         submitted_by=UserRef(id=demand.submitted_by, display_name=submitter_name)
         if demand.submitted_by
+        else None,
+        ad_status=demand.ad_status,
+        ad_assigned_to=demand.ad_assigned_to,
+        ad_updated_at=demand.ad_updated_at,
+        ad_updated_by=UserRef(id=demand.ad_updated_by, display_name=ad_updater_name)
+        if demand.ad_updated_by
         else None,
         created_at=demand.created_at,
         created_by=UserRef(id=demand.created_by, display_name=creator_name),
@@ -112,6 +123,10 @@ def _apply_filters(query: Select, f: DemandFilters) -> Select:
         query = query.where(DemandLetter.progress_status == f.progress_status)
     if f.assign_to:
         query = query.where(DemandLetter.assign_to == f.assign_to)
+    if f.ad_status:
+        query = query.where(DemandLetter.ad_status == f.ad_status)
+    if f.ad_assigned_to:
+        query = query.where(DemandLetter.ad_assigned_to == f.ad_assigned_to)
     # Dates are calendar days in India time, inclusive on both ends.
     if f.approved_from:
         query = query.where(DemandLetter.approved_at >= _ist_day_start(f.approved_from))
@@ -181,6 +196,7 @@ async def filter_options(db: AsyncSession) -> FilterOptions:
         employers=await distinct(DemandLetter.employer),
         assignees=await distinct(DemandLetter.assign_to),
         statuses=await distinct(DemandLetter.progress_status),
+        ad_assignees=await distinct(DemandLetter.ad_assigned_to),
     )
 
 

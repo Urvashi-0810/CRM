@@ -462,3 +462,19 @@ button.menu-item:hover { background: var(--canvas); }
 .paste-card-dock { margin: 0 18px; }
 .quick-attach { display: flex; align-items: center; gap: 6px; border-top: 1px solid var(--border); padding-top: 8px; flex-wrap: wrap; }
 .quick-attach-btn { height: 26px; padding: 0 10px; font-size: 12px; }
+
+/* ---------- create advertisement ---------- */
+.page-intro { margin: -8px 0 14px; }
+.cell-input { width: 100%; min-width: 120px; height: 30px; padding: 0 8px; border: 1px solid transparent; border-radius: 6px; background: transparent; font: inherit; }
+.cell-input:hover { border-color: var(--border); background: var(--surface); }
+.cell-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 2px var(--focus); background: var(--surface); }
+.ad-status { height: 30px; padding: 0 6px; border-radius: 9999px; border: 1px solid; font: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.ad-status-amber { color: var(--amber); background: var(--amber-bg); border-color: #fde68a; }
+.ad-status-blue { color: var(--secondary); background: #eff6ff; border-color: #bfdbfe; }
+.ad-status-green { color: var(--green); background: var(--green-bg); border-color: #a7f3d0; }
+.export-step { font-weight: 600; font-size: 13px; margin-bottom: 8px; color: var(--text); }
+.export-choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.export-choice { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; text-align: left; padding: 10px 12px; border: 1px solid var(--border-strong); border-radius: var(--radius); background: var(--surface); cursor: pointer; font: inherit; }
+.export-choice:hover:not(:disabled) { border-color: var(--primary); background: var(--canvas); }
+.export-choice.active { border-color: var(--primary); box-shadow: 0 0 0 2px var(--focus); }
+.export-choice:disabled { opacity: 0.6; cursor: wait; }
