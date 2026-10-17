@@ -5,6 +5,22 @@ Login, profiles and admin (M1) · demand register (M2) · AI chat that writes th
 
 ## What works now
 
+**Phase 3 — Dashboard**
+- New page **Dashboard** (left menu, everyone logged in). Counts **approved letters only**: 1 approved letter =
+  1 order, with its vacancies added up. The approval date decides the period, in **India time**.
+- Period: this month, last month, this year, or a custom range; everything on the page and the Excel export
+  follow it.
+- **Headline numbers**, each compared with the previous period (same days of last month / same time last year /
+  the month before / the same number of days before): orders, vacancies, clients, new clients (first order
+  ever).
+- **Orders over time** (per day for periods up to ~2 months, otherwise per month) · **Pipeline right now**
+  (drafts, waiting for admin approval with the oldest wait, approved all time; not limited to the period) ·
+  **Top clients** · **Orders by country** · **Repeat clients** (2+ orders in one calendar month) · **Most
+  demanded positions** (people needed per trade) · **Advertisement status** · **Team output** (approved letters
+  per creator). Hover any bar for exact numbers; the Excel export has every row, one sheet per section.
+- Employers, countries and positions are grouped ignoring case and spaces. Letters with no employer/country form
+  a gray "Not filled" row, listed last and not counted as a client.
+
 **Phase 2 — Create Advertisement**
 - New page **Create Advertisement** (left menu, everyone logged in): approved letters only, with the same search,
   filters, sorting, pages and Excel export as the demand list. Country, demand ID, employer, vacancy and target
@@ -225,6 +241,7 @@ All routes are under `/api/v1`; errors are `application/problem+json`; every POS
 | POST | `/demands/{id}/versions/{no}/restore` | **201** new newest version · 409 already newest |
 | POST | `/demands/{id}/edited-uploads` | multipart `file` (.docx) → **201** `{version_no, header_found}` · 422 wrong letter |
 | GET | `/ads` · `/ads/filter-options` · `/ads/export` | Create Advertisement table (approved only; filters `q, country, employer, ad_status, ad_assigned_to, approved_from, approved_to, sort`), Excel |
+| GET | `/dashboard` · `/dashboard/export` | `period=this_month\|last_month\|this_year\|custom` (+ `date_from`, `date_to` for custom, inclusive, India time) → totals, by_client, repeat_clients, by_country, ad_status · Excel |
 | PATCH | `/ads/{id}` | `{ad_status?, ad_assigned_to?}` · records who/when · 404 if not approved |
 | GET | `/ads/{id}/export?tool=canva\|figma&format=docx\|pdf\|png\|jpg` | newest version for the tool · 422 wrong format for the tool · 503 LibreOffice missing |
 | GET | `/files/{id}` | attachments, JD pictures, letterhead images |

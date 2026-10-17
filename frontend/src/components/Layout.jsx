@@ -24,6 +24,9 @@ export default function Layout() {
         </div>
         <nav aria-label="Main">
           <p className="nav-section">Core modules</p>
+          <NavLink to="/dashboard" className="nav-link">
+            Dashboard
+          </NavLink>
           <NavLink to="/demands" className="nav-link">
             Demand Drafts
           </NavLink>

@@ -156,6 +156,9 @@ async def _apply_extracted(db: AsyncSession, demand: DemandLetter, response: AiR
         value = getattr(ex, field)
         if field in manual or value in (None, ""):
             continue
+        # The letter's "[[MISSING: …]]" placeholder is not a value: leave the field empty.
+        if isinstance(value, str) and "[[MISSING" in value.upper():
+            continue
         if field == "vacancy" and value < 0:
             continue
         if getattr(demand, field) != value:
