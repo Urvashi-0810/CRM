@@ -386,18 +386,15 @@ export default function ChatPage() {
                   <Button type="button" variant="ghost" onClick={() => pickFiles('jd')} disabled={busy}>
                     + Add JD
                   </Button>
-                  <InquiryMenu
-                    onPaste={() => pasteBox.current?.focus()}
-                    onUpload={() => pickFiles('inquiry')}
-                    disabled={busy}
-                  />
+                  <InquiryMenu onPaste={openPaste} onUpload={() => pickFiles('inquiry')} disabled={busy} />
                 </div>
-                {!pastedInquiry && (
+                {pasteOpen && (
                   <PasteInquiryCard
                     value={pasteDraft}
                     onChange={setPasteDraft}
                     onAttach={attachPasted}
                     onUpload={() => pickFiles('inquiry')}
+                    onClose={() => setPasteOpen(false)}
                     textareaRef={pasteBox}
                     disabled={busy}
                   />
@@ -547,7 +544,7 @@ export default function ChatPage() {
               <InquiryMenu
                 small
                 up
-                onPaste={() => (messages.length === 0 ? pasteBox.current?.focus() : openPaste())}
+                onPaste={openPaste}
                 onUpload={() => pickFiles('inquiry')}
                 disabled={busy}
               />
