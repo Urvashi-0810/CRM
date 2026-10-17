@@ -1,0 +1,24 @@
+Metadata-Version: 2.4
+Name: demand-crm-backend
+Version: 0.1.0
+Summary: Demand Letter CRM - backend API
+Requires-Python: >=3.12
+Requires-Dist: fastapi<1.0,>=0.143
+Requires-Dist: uvicorn[standard]<1.0,>=0.54
+Requires-Dist: sqlalchemy[asyncio]<2.2,>=2.1
+Requires-Dist: asyncpg<1.0,>=0.32
+Requires-Dist: alembic<2.0,>=1.20
+Requires-Dist: pydantic-settings<3.0,>=2.15
+Requires-Dist: argon2-cffi<26.0,>=25.1
+Requires-Dist: openpyxl<4.0,>=3.1
+Requires-Dist: python-multipart>=0.0.20
+Requires-Dist: anthropic<2.0,>=1.13
+Requires-Dist: google-genai<3.0,>=2.29
+Requires-Dist: python-docx<2.0,>=1.2
+Requires-Dist: pypdf<7.0,>=6.0
+Requires-Dist: pillow<13.0,>=12.0
+Requires-Dist: cryptography>=45.0
+Provides-Extra: dev
+Requires-Dist: pytest<10.0,>=9.1; extra == "dev"
+Requires-Dist: pytest-asyncio<2.0,>=1.4; extra == "dev"
+Requires-Dist: httpx<1.0,>=0.28; extra == "dev"
